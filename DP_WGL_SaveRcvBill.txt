@@ -1,7 +1,7 @@
 USE [UFDATA_002_2013]
 GO
 
-/****** Object:  StoredProcedure [dbo].[DP_WGL_SaveRcvBill]    Script Date: 07/15/2015 11:17:56 ******/
+/****** Object:  StoredProcedure [dbo].[DP_WGL_SaveRcvBill]    Script Date: 07/20/2015 11:30:46 ******/
 SET ANSI_NULLS ON
 GO
 
@@ -30,8 +30,8 @@ declare @csscode varchar(30)
 declare @amount decimal(18,2)
 declare @info varchar(30)
 
-select @nextid =MAX(iID)+1 from Ap_CloseBill
-select @bodynextid =MAX(ID)+1 from Ap_CloseBills
+select @nextid =MAX(iID)+1 from Ap_CloseBill where iID<2000000000
+select @bodynextid =MAX(ID)+1 from Ap_CloseBills where ID<2000000000
 
 select @cssname=T.N.value('PayMethod[1]','varchar(50)'),@CustomerId=T.N.value('CustomerId[1]','varchar(50)'),@amount=T.N.value('PayAmount[1]','decimal(18,2)')
 from @XML.nodes('/CMS/in') as T(N)
@@ -70,13 +70,14 @@ end
 insert into Ap_CloseBill(iID,cDwCode,cBankAccount,cVouchType,dVouchDate,cVouchID,cSSCode,
 cexch_name,cFlag,cOperator,bFromBank,bToBank,bSure,VT_ID,iPayType,iPeriod,
 iAmount,iAmount_f,iRAmount,iRAmount_f,
-cDeptCode
+cDeptCode,cCode
 )
 select @nextid,@CustomerId ,T.N.value('PayAcct[1]','varchar(50)'),'48',
 T.N.value('PaymentDate[1]','varchar(50)'),T.N.value('PaymentId[1]','varchar(50)'),@csscode,
 '人民币','AR','工银聚平台',0,0,0,'8052',0,datepart(month,T.N.value('PaymentDate[1]','varchar(50)')),
 @amount,@amount,@amount,@amount,
-'D0101'--销售一部
+'D0101','10020101'
+--销售一部,结算科目编码
 from @XML.nodes('/CMS/in') as T(N)
 
 
