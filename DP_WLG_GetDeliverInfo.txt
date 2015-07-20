@@ -1,0 +1,65 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetDeliverInfo]    Script Date: 07/15/2015 11:19:14 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetDeliverInfo] 
+    @StartTime varchar(30)='2014-1-1',
+    @EndTime varchar(30)='2014-10-1',
+    @LastRecordTime varchar(30)=null output
+AS
+BEGIN
+    SET NOCOUNT ON;
+select 
+h.cCusCode as CustomerId,h.cCusName as CustomerName,
+h.cDLCode as DeliveryId,h.dDate as	DeliveryTime,cordercode as OrderId,
+h.ShipMethod,
+c.cCusHand as Mobile,--h.cCusName as Maker,h.cMemo as Memo,
+b.irowno as ProductEntry,b.cInvcode as ProductId,b.cInvName as ProductName,--cu.cComUnitName as Unit,
+	b.iQuantity as ArrangedQty,b.fOutQuantity as OutedQty,
+	i.cInvStd as F1,
+	b.iQuotedPrice as F2,
+	b.iNatSum as F3,
+	map.CusInvCode as F4,
+	map.CusInvName as F5,
+	b.cDefine22 as F6,
+	(b.iQuantity-b.iSettleQuantity)*b.iQuotedPrice as F7,
+	b.iQuantity-b.iSettleQuantity as F8,	
+	b.cMemo as F9
+	--,sh.cSOCode--,b.iTaxUnitPrice as TaxPrice,b.iQuotedPrice as RealPrice,b.iDisCount as Discount,b.iNatSum as TotalAmount
+	from (select b.cSCName as ShipMethod, a.* from DispatchList a left join ShippingChoice b  on a.cSCCode = b.cSCCode) h
+	inner join DispatchLists b on h.DLID = b.DLID
+	inner join Inventory i on i.cInvCode = b.cInvCode
+	inner join Customer c on c.cCusCode = h.cCusCode
+	left join (select i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+c.cCusCode, c.cCusName,b.cDefine23 as CusInvCode,b.cDefine24 as CusInvName
+ from sa_quomain h,sa_quodetails b,inventory i,
+ Customer c,ComputationUnit cu,InventoryClass ic
+where h.ID = b.ID and b.cInvCode = i.cInvCode 
+and i.cInvCCode = ic.cInvCCode
+and c.cCusCode = h.cCusCode 
+and cu.cComunitCode = i.cComUnitCode
+and (isnull(b.cDefine23,'')!='' or isnull(b.cDefine24,'')!='')
+group by i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+c.cCusCode, c.cCusName,b.cDefine23,b.cDefine24) map
+on map.cInvCode = b.cInvCode and map.cCusCode = h.cCusCode
+
+where (h.dDate>=@StartTime and h.dDate<=@EndTime)
+
+
+
+order by h.DLID,b.irowno
+   
+	set @LastRecordTime = GETDATE()
+END
+
+
+
+GO
+

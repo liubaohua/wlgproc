@@ -1,0 +1,48 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_CustInfoVerify]    Script Date: 07/15/2015 11:18:24 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WLG_CustInfoVerify] 
+    @CustomerId varchar(20)= NULL,
+    @TaxId varchar(20)= NULL ,
+    @RetCheckFlag varchar(1)=null output
+    
+AS
+BEGIN
+    SET NOCOUNT ON;
+    if @CustomerId is null and @TaxId is null 
+    begin
+    SET @RetCheckFlag='F'
+    end
+    else
+    begin
+    
+	declare @SQLQuery nvarchar(1000)
+     
+   
+SET @SQLQuery = 'SELECT a.cCusCode AS CustomerId,a.cCusName AS CustomerName,a.cCusPhone AS CustomerTel,a.cCusPerson AS ContactName,isnull(b.farsum,0)+isnull(b.fDLSum,0) as CustomerDebt,isnull(iCusCreLine,0) as TotalCredit,isnull(iCusCreLine,0)-isnull(b.farsum,0)-isnull(b.fDLSum,0) as RemainCredit FROM Customer a left join SA_CreditSum b on a.cCusCode = b.cCusCode and b.iType = 1 where 1=1 '
+if @CustomerId is not null 
+set @SQLQuery = @SQLQuery+' and a.cCusCode='''+@CustomerId+''''
+if @TaxId is not null 
+set @SQLQuery = @SQLQuery+' and a.cCusRegCode ='''+@TaxId+''''
+print @SQLQuery
+
+EXECUTE sp_executesql @SQLQuery
+print @@rowcount
+
+	end
+	
+	
+END
+
+
+
+GO
+

@@ -1,0 +1,88 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WGL_SaveOrder]    Script Date: 07/15/2015 11:16:46 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+--D00301
+ALTER PROCEDURE [dbo].[DP_WGL_SaveOrder]
+(
+@xml xml
+)
+as
+BEGIN
+
+SET ARITHABORT ON
+
+declare @nextid int
+declare @bodynextid int
+declare @csocode varchar(30)
+declare @orderid varchar(30)
+declare @custpo varchar(30)
+
+select @csocode=T.N.value('OrderId[1]','varchar(50)') from @XML.nodes('/CMS/in') as T(N)
+
+
+select @nextid=max(id)+1 from So_SoMain
+insert into So_SoMain(ID,cSOCode,iStatus,cCusCode,dcreatesystime,cCusOAddress,
+cSCCode,
+cSTCode,ddate,cDepCode,
+cBusType,cMaker,dPreDateBT,cDefine1)
+select @nextid,T.N.value('OrderId[1]','varchar(50)'),0,T.N.value('CustomerId[1]','varchar(50)'),
+T.N.value('CreateTime[1]','varchar(50)'),T.N.value('Address[1]','varchar(50)'),
+T.N.value('ShipMethod[1]','varchar(5)'),
+'01',T.N.value('CreateTime[1]','varchar(50)'),'D0101',
+'分期收款','工银聚',GETDATE(),'内销'
+from @XML.nodes('/CMS/in') as T(N)
+
+select @custpo=T.N.value('Rd1[1]','varchar(50)')
+from @XML.nodes('/CMS/in') as T(N)
+
+
+select @bodynextid=max(iSOsID) from So_SoDetails
+
+insert into So_SoDetails(iSOsID,id,iRowNo,cInvcode,cInvName,cMemo,dPreDate,cSOCode,dPreMoDate,
+iQuantity,iTaxUnitPrice,
+iSum,iTaxRate,
+iNatUnitPrice,iNatTax,ITax,
+iNatMoney,IMoney,iNatSum,
+iUnitPrice,
+cDefine22
+)
+
+select @bodynextid+ROW_NUMBER() over(order by rn),
+@nextid,tt.OrderEntry,tt.ProductId,tt.ProductName,tt.Memo,tt.ToDate,@csocode,GETDATE(),
+tt.iQuantity,tt.iTaxUnitPrice,
+cast(iQuantity*iTaxUnitPrice as decimal(18,2)) ,17,
+cast(0.83*iTaxUnitPrice as decimal(18,2)),0.83*iTaxUnitPrice*iQuantity*0.17,0.83*iTaxUnitPrice*iQuantity*0.17,
+0.83*iTaxUnitPrice*iQuantity,0.83*iTaxUnitPrice*iQuantity,cast(iQuantity*iTaxUnitPrice as decimal(18,2)),
+cast(0.83*iTaxUnitPrice as decimal(18,2)),
+@custpo
+from (
+select 1 as rn,T.N.value('Count[1]','decimal') as iQuantity,
+T.N.value('Price[1]','decimal') as iTaxUnitPrice,
+T.N.value('OrderEntry[1]','varchar(50)') as OrderEntry,
+T.N.value('ProductId[1]','varchar(50)') as ProductId,
+T.N.value('ProductName[1]','varchar(50)') as ProductName,
+T.N.value('Memo[1]','varchar(50)') as Memo,
+T.N.value('ToDate[1]','varchar(50)') as ToDate
+from @XML.nodes('/CMS/in/ProductInfo') as T(N) 
+) tt
+
+--select @bodynextid+ROW_NUMBER() over(order by autoid),
+--@nextid,T.N.value('OrderEntry[1]','varchar(50)'),
+--T.N.value('ProductId[1]','varchar(50)'),T.N.value('Memo[1]','varchar(50)'),T.N.value('ToDate[1]','varchar(50)'),@csocode,
+--T.N.value('Count[1]','decimal'),T.N.value('Price[1]','decimal'),cast(iQuantity*iTaxUnitPrice as decimal(18,2)) ,17,
+--cast(0.83*iTaxUnitPrice as decimal(18,2)),0.83*iTaxUnitPrice*iQuantity*0.17,0.83*iTaxUnitPrice*iQuantity*0.17,
+--0.83*iTaxUnitPrice*iQuantity,0.83*iTaxUnitPrice*iQuantity,cast(iQuantity*iTaxUnitPrice as decimal(18,2))
+
+--from @XML.nodes('/CMS/in') as T(N)
+----
+
+END
+GO
+

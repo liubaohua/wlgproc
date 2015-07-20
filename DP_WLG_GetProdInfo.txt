@@ -1,0 +1,51 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetProdInfo]    Script Date: 07/15/2015 11:20:16 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetProdInfo] 
+    @CursorCount int output
+    
+AS
+BEGIN
+    SET NOCOUNT ON;
+	declare @cnt int -- get total count
+    select @cnt = count(1) from Inventory
+	
+    SELECT cInvCode AS ProductId,cInvName AS ProductName,cInvCCode as CategoryId,cInvStd AS Specification,
+    cComUnitName as Unit,iTaxUnitPrice as Price,cCusCode as F1,cCusName as F3,CusInvCode as F4,CusInvName as F5
+     from 
+    (
+     select ROW_NUMBER() OVER(ORDER BY i.cInvCode) AS rn,
+    i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+	c.cCusCode, c.cCusName,b.cDefine23 as CusInvCode,b.cDefine24 as CusInvName,CAST(b.iTaxUnitPrice as decimal(18,2)) as iTaxUnitPrice 
+	 from sa_quomain h,sa_quodetails b,inventory i,
+	 Customer c,ComputationUnit cu,InventoryClass ic
+	where h.ID = b.ID and b.cInvCode = i.cInvCode 
+	and i.cInvCCode = ic.cInvCCode
+	and c.cCusCode = h.cCusCode 
+	and cu.cComunitCode = i.cComUnitCode
+	and (isnull(b.cDefine23,'')!='' or isnull(b.cDefine24,'')!='')
+	group by i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+	c.cCusCode, c.cCusName,b.cDefine23,b.cDefine24,b.iTaxUnitPrice
+   ) t where rn>=@CursorCount and rn<@CursorCount+100
+   
+
+	if @CursorCount+100>@cnt or @@rowcount=0
+	set @CursorCount = 0 
+	else
+	set @CursorCount = @CursorCount+99
+	
+	
+END
+
+
+
+GO
+

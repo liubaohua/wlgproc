@@ -1,0 +1,47 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetCustInfo]    Script Date: 07/15/2015 11:19:00 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetCustInfo] 
+    @CursorCount int output
+AS
+BEGIN
+    SET NOCOUNT ON;
+	declare @cnt int -- get total count
+    select @cnt = count(1) from Customer
+	
+    SELECT cCusCode AS CustomerId,cCusName AS CustomerName,cCusPhone AS CustomerTel,
+    cCusPerson AS ContactName--,CustomerDebt,TotalCredit,RemainCredit 
+    from 
+    (
+	SELECT ROW_NUMBER() OVER(ORDER BY a.cCusCode) AS rn,
+       a.cCusCode ,
+       cCusName ,
+       cCusPhone ,
+       cCusPerson ,b.farsum+b.fDLSum as CustomerDebt,iCusCreLine as TotalCredit,
+       iCusCreLine-b.farsum-b.fDLSum as RemainCredit
+        --,bCredit ,b.farsum
+   FROM Customer a left join SA_CreditSum b
+   on a.cCusCode = b.cCusCode
+   where b.iType = 1
+   ) t where rn>=@CursorCount and rn<@CursorCount+100
+   
+
+	if @CursorCount+100>@cnt or @cnt=0
+	set @CursorCount = 0 
+	else
+	set @CursorCount = @CursorCount+99
+	
+	
+END
+
+
+
+GO
+

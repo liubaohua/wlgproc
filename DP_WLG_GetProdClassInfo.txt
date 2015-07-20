@@ -1,0 +1,42 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetProdClassInfo]    Script Date: 07/15/2015 11:20:00 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetProdClassInfo] 
+    @CursorCount int output
+    
+AS
+BEGIN
+    SET NOCOUNT ON;
+	declare @cnt int -- get total count
+    select @cnt = count(1) from InventoryClass
+
+    SELECT cInvCCode as CategoryId,cInvCName as CategoryName,
+     ParentId as ParentId,iInvCGrade as Level,bInvCEnd as HasChild
+     from 
+    (
+    select ROW_NUMBER() OVER(ORDER BY h.cInvCCode) AS rn,cInvCCode,cInvCName,iInvCGrade,bInvCEnd,
+	(select cInvCCode from InventoryClass b 
+	where b.iInvCGrade+1=h.iInvCGrade and LEFT(h.cinvccode,LEN(b.cinvccode))=b.cinvccode) as ParentId
+	from InventoryClass h 
+   ) t where rn>=@CursorCount and rn<@CursorCount+100
+
+if @CursorCount+100>@cnt or @@rowcount=0
+set @CursorCount = 0 
+else
+set @CursorCount = @CursorCount+99
+	
+	
+END
+
+
+
+GO
+

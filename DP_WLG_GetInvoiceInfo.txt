@@ -1,0 +1,38 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetInvoiceInfo]    Script Date: 07/15/2015 11:19:30 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetInvoiceInfo] 
+    @StartTime varchar(30)='2014-1-1',
+    @EndTime varchar(30)='2014-10-1',
+    @LastRecordTime varchar(30)=null output
+AS
+BEGIN
+    SET NOCOUNT ON;
+	select h.cCusCode as CustomerId,h.cSBVCode as InvoiceId,
+	b.cordercode as OrderId,
+	h.dDate as InvoiceDate,h.cCusName as PayerName,
+	h.cMemo as Memo,
+	b.irowno as InvoiceEntry,b.cInvcode as ProductId,b.cInvName as ProductName,i.cInvStd as Specification,
+	cu.cComUnitName as Unit,
+	b.iQuantity as Count,b.iTaxUnitPrice as TaxPrice,b.iQuotedPrice as RealPrice,b.iDisCount as Discount,
+	b.iNatSum as TotalAmount
+	from SaleBillVouch h,SaleBillVouchs b,Inventory i,ComputationUnit cu
+	where h.SBVID  = b.SBVID  and i.cInvCode = b.cInvCode 
+	and cu.cComunitCode  = i.cComUnitCode
+	and (h.dDate>=@StartTime and h.dDate<=@EndTime)
+   
+	set @LastRecordTime = GETDATE()
+END
+
+
+
+GO
+

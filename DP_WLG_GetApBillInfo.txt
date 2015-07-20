@@ -1,0 +1,40 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetApBillInfo]    Script Date: 07/15/2015 11:18:43 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetApBillInfo] 
+ --   @CursorCount int output,
+    @StartTime varchar(30),
+    @EndTime varchar(30)
+AS
+BEGIN
+    SET NOCOUNT ON;
+	
+
+select h.cDwCode as CustomerId,
+ h.cVouchID as StatementId,
+ v.ctypename as StatementType,
+ h.dVouchDate as StatementDate ,
+b.iAmt as YFAmount,
+b.iAmt-b.iRAmt as YFPaid,
+--null InvoiceId,h.cVouchType ,h.iExchRate,
+b.iRAmt as Remain ,
+c.cCusName as Rd1,c.cCusAbbName as Rd2,s.cSSName as Rd3
+  from Ap_CloseBill h inner join Ap_CloseBills b on h.iID = b.iID
+inner join Customer c on c.cCusCode = h.cDwCode
+inner join ap_VouchType v on v.ctypecode = h.cVouchType
+inner join SettleStyle s on s.cSSCode = h.cSSCode
+where h.dVouchDate>=@StartTime and h.dVouchDate<=@EndTime
+	
+END	
+
+
+
+GO
+

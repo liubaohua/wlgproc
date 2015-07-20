@@ -1,0 +1,93 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WGL_SaveRcvBill]    Script Date: 07/15/2015 11:17:56 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[DP_WGL_SaveRcvBill]
+(
+@xml xml
+)
+as
+BEGIN
+
+SET ARITHABORT ON
+
+declare @nextid int
+declare @bodynextid int
+declare @csocode varchar(30)
+declare @orderid varchar(30)
+declare @custpo varchar(30)
+declare @CustomerId varchar(30)
+declare @CustomerName varchar(30)
+declare @cssname varchar(30)
+declare @csscode varchar(30)
+declare @amount decimal(18,2)
+declare @info varchar(30)
+
+select @nextid =MAX(iID)+1 from Ap_CloseBill
+select @bodynextid =MAX(ID)+1 from Ap_CloseBills
+
+select @cssname=T.N.value('PayMethod[1]','varchar(50)'),@CustomerId=T.N.value('CustomerId[1]','varchar(50)'),@amount=T.N.value('PayAmount[1]','decimal(18,2)')
+from @XML.nodes('/CMS/in') as T(N)
+
+if @cssname is null 
+begin
+RAISERROR( N'结算方式为空',16,1); 
+return 
+end
+ if @CustomerId is null 
+ begin
+RAISERROR( N'客户编码为空',16,1); 
+return
+end
+
+select @csscode = w.cSSCode from SettleStyle w where w.cSSName = @cssname
+
+if @csscode is null 
+begin
+
+set @info= N'结算方式 '+@cssname+' 不存在'
+RAISERROR( @info,16,1); 
+return
+end
+
+select @CustomerName=cCusname from Customer where cCuscode=@CustomerId
+
+if @CustomerName is null 
+begin
+set @info= N'客户编码 '+@CustomerId+' 不存在'
+RAISERROR( @info,16,1); 
+return
+end
+
+
+insert into Ap_CloseBill(iID,cDwCode,cBankAccount,cVouchType,dVouchDate,cVouchID,cSSCode,
+cexch_name,cFlag,cOperator,bFromBank,bToBank,bSure,VT_ID,iPayType,iPeriod,
+iAmount,iAmount_f,iRAmount,iRAmount_f,
+cDeptCode
+)
+select @nextid,@CustomerId ,T.N.value('PayAcct[1]','varchar(50)'),'48',
+T.N.value('PaymentDate[1]','varchar(50)'),T.N.value('PaymentId[1]','varchar(50)'),@csscode,
+'人民币','AR','工银聚平台',0,0,0,'8052',0,datepart(month,T.N.value('PaymentDate[1]','varchar(50)')),
+@amount,@amount,@amount,@amount,
+'D0101'--销售一部
+from @XML.nodes('/CMS/in') as T(N)
+
+
+insert into Ap_CloseBills(ID,iID,iAmt_f,iAmt,iRAmt_f,iRAmt,cMemo,
+ifaresettled_f,iType,bPrePay,cCusVen,cKm,cDepCode 
+)
+select @bodynextid,@nextid, @amount,@amount,@amount,@amount,T.N.value('Remark[1]','varchar(50)'),
+0,0,0,@CustomerId,'1131','D0101'--销售一部
+from @XML.nodes('/CMS/in') as T(N)
+
+
+END
+GO
+

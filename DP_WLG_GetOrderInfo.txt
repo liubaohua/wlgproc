@@ -1,0 +1,105 @@
+USE [UFDATA_002_2013]
+GO
+
+/****** Object:  StoredProcedure [dbo].[DP_WLG_GetOrderInfo]    Script Date: 07/15/2015 11:19:45 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+---D00300
+
+ALTER PROCEDURE [dbo].[DP_WLG_GetOrderInfo] 
+  --  @CursorCount int output,
+    @StartTime varchar(30)='2014-1-1',
+    @EndTime varchar(30)='2014-10-1',
+    @LastRecordTime varchar(30)=null output
+AS
+BEGIN
+
+--set @LastRecordTime = GETDATE()
+
+    SET NOCOUNT ON;
+
+	select t2.OrderId,t2.CustomerId,t2.CustomerName,t2.CreateTime,t2.OrderStatus,t2.BusinessDate,
+	t2.SumTotal,t2.Contact,t2.ContactNum,t2.Remark,t2.OrderEntry,t2.ProductId,t2.ProductName,t2.Specification,t2.Batch,t2.Unit,
+	t2.CategoryId,t2.Count,t2.Memo,t2.ToDate,t2.F1,t2.Rd1,t2.Price,t2.F2,t2.F3
+	 from (
+    SELECT ROW_NUMBER() OVER(ORDER BY OrderId,OrderEntry) AS rn,
+    t.OrderId,t.CustomerId,t.CustomerName,t.CreateTime,t.OrderStatus,t.BusinessDate,
+    t.SumTotal,t.Contact,t.ContactNum,t.Remark,t.OrderEntry,t.ProductId,t.ProductName,t.Specification,t.Batch,t.Unit,
+    t.CategoryId,t.Count,t.Memo,t.ToDate,t.F1,t.Price,t.F2,t.F3,t.Rd1
+     from 
+    (
+    select lt.OrderId,lt.CustomerId,lt.CustomerName,lt.CreateTime,lt.OrderStatus,lt.BusinessDate,lt.SumTotal,
+    lt.Contact,lt.ContactNum,lt.Remark,lt.OrderEntry,lt.ProductId,lt.ProductName,rt.CusInvCode as Specification,rt.CusInvName as Batch,
+    lt.Unit,lt.CategoryId,lt.Count,lt.Memo,lt.ToDate,lt.Price,lt.F1,lt.F2,lt.F3,lt.Rd1
+    from 
+    (
+    select h.cSOCode as OrderId,h.cCuscode as CustomerId,c.cCusName as CustomerName,
+		h.dcreatesystime as CreateTime,h.iStatus as OrderStatus,
+		h.dDate as BusinessDate,
+		sum(b.iSum) over (PARTITION  by h.csocode) as SumTotal,
+		cm.ccusperson as Contact,
+		isnull(cm.cCusHand,cm.cCusPhone) as ContactNum,
+		h.cMemo as Remark,
+		b.iRowNo as OrderEntry,
+		b.cInvcode as ProductId,
+		i.cInvName as ProductName,
+		i.cInvStd as Specification,
+		cu.cComUnitName as Unit,
+		i.cInvCCode as CategoryId,
+		b.iQuantity as Count,
+		b.cMemo as Memo,
+		b.dPreDate as ToDate,
+		b.iTaxUnitPrice as Price,
+		b.iSum as F1,
+		b.F2,--»Ø¸´ÈÕÆÚ
+		b.iQuantity - b.iFHQuantity as F3,
+		b.cDefine22 as Rd1
+		from SO_SOMain h,(select ex.cbdefine6 as F2,sb.* from SO_SODetails sb left join SO_SODetails_extradefine ex on sb.iSOsID = ex.iSOsID) b,Customer c,
+		Inventory i,--InventoryClass ic,
+		ComputationUnit cu,Customer cm
+		where h.id = b.id and c.cCuscode = h.cCuscode 
+		and i.cInvCode=b.cInvCode 
+		--and i.cInvCCode=ic.cInvCCode 
+		and cu.cComunitCode  = i.cComUnitCode
+		and cm.cCusCode = h.cCusCode
+		and ((h.dcreatesystime>=@StartTime and h.dcreatesystime<=@EndTime) 
+		or 
+		(h.dmodifysystime>=@StartTime and h.dmodifysystime<=@EndTime))) lt left join 
+    
+    (select i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+	c.cCusCode, c.cCusName,b.cDefine23 as CusInvCode,b.cDefine24 as CusInvName
+	 from sa_quomain h,sa_quodetails b,inventory i,
+	 Customer c,ComputationUnit cu,InventoryClass ic
+	where h.ID = b.ID and b.cInvCode = i.cInvCode 
+	and i.cInvCCode = ic.cInvCCode
+	and c.cCusCode = h.cCusCode 
+	and cu.cComunitCode = i.cComUnitCode
+	and (isnull(b.cDefine23,'')!='' or isnull(b.cDefine24,'')!='')
+	group by i.cInvCode,i.cInvName,ic.cInvCCode, i.cInvStd,cu.cComUnitName, 
+	c.cCusCode, c.cCusName,b.cDefine23,b.cDefine24) rt
+	
+	on lt.ProductId = rt.cInvCode and lt.CustomerId = rt.cCusCode
+	
+	
+     
+   ) t
+   ) t2 
+   --where rn>=@CursorCount and rn<@CursorCount+100
+order by OrderId,OrderEntry  
+
+	--if @CursorCount+100>@cnt or @cnt=0
+	--set @CursorCount = 0 
+	--else
+	--set @CursorCount = @CursorCount+99
+	
+	set @LastRecordTime = GETDATE()
+END
+
+
+
+GO
+
